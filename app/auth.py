@@ -1,7 +1,11 @@
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Final
+from sqlalchemy.orm import Session
+from app.util import hash_token
+from datetime import datetime, timezone, timedelta
 import secrets
+import uuid
 import os
 from app.models import RefreshToken
 
@@ -49,7 +53,11 @@ def create_access_token(
     else:
         expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update({"exp": expire, "iat": now})
+    to_encode.update({
+        "iat": now,
+        "exp": expire,
+        "jti": str(uuid.uuid4())
+    })
 
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -89,79 +97,57 @@ def create_refresh_token():
     return secrets.token_urlsafe(32)
 
 
-def verify_refresh_token(refresh_token: str, db, credentials_exception) -> dict:
-    """
-    Verify the refresh token against the database
-
-    Argument:
-    refresh_token - the refresh token to verify
-    db - database session
-    credentials_exception - exception to raise if invalid
-
-    return: dict with user_id and refresh_token_id
-    """
+def verify_refresh_token(refresh_token: str, db: Session, credentials_exception):
+    """Verify hashed token and expiry."""
+    hashed = hash_token(refresh_token)
 
     db_refresh_token = db.query(RefreshToken).filter(
-        RefreshToken.token == refresh_token
+        RefreshToken.token == hashed,
+        RefreshToken.revoked == False
     ).first()
 
     if not db_refresh_token:
         raise credentials_exception
 
-    # Check if token is expired
-    if datetime.utcnow() > db_refresh_token.expires_at:
-        # Delete expired token
+    if (datetime.now(timezone.utc) > db_refresh_token.expires_at).scalar():
         db.delete(db_refresh_token)
         db.commit()
         raise credentials_exception
 
     return {
         "user_id": db_refresh_token.user_id,
-        "refresh_token_id": db_refresh_token.id
+        "refresh_token_id": db_refresh_token.id,
     }
 
 
-def create_refresh_token_entry(db, user_id: int) -> str:
-    """
-    Create a new refresh token entry in the database
+def create_refresh_token_entry(db: Session, user_id: int):
+    # Generate a unique token (string)
+    refresh_token = str(uuid.uuid4())
 
-    Arguments:
-    db - database session
-    user_id - the user id for whom to create the token
+    # Hash it before storing
+    hashed = hash_token(refresh_token)
 
-    return: the refresh token string
-    """
+    expires_at = datetime.now(timezone.utc) + \
+        timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
-    db.query(RefreshToken).filter(
-        RefreshToken.user_id == user_id,
-        RefreshToken.expires_at < datetime.utcnow()
-    ).delete()
-    db.commit()
-
-    # Generate new refresh token
-    refresh_token = create_refresh_token()
-    expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
-    new_refresh_token = RefreshToken(
-        token=refresh_token,
+    new_entry = RefreshToken(
         user_id=user_id,
-        expires_at=expires_at
+        token=hashed,
+        jti=str(uuid.uuid4()),  # unique ID for the token
+        expires_at=expires_at,
     )
-
-    db.add(new_refresh_token)
+    db.add(new_entry)
     db.commit()
-    db.refresh(new_refresh_token)
+    db.refresh(new_entry)
 
     return refresh_token
 
 
-def revoke_refresh_token(db, refresh_token_id: int):
-    """
-    Revoke a refresh token by deleting it from the database
-
-    Arguments:
-    db - database session
-    refresh_token_id - the id of the refresh token to revoke
-    """
-    db.query(RefreshToken).filter(RefreshToken.id == refresh_token_id).delete()
-    db.commit()
+def revoke_refresh_token(db: Session, refresh_token_id: int):
+    """Mark a refresh token as revoked."""
+    token = db.query(RefreshToken).filter(
+        RefreshToken.id == refresh_token_id).first()
+    if token:
+        # use setattr to avoid static type check errors assigning a Literal to a Column-typed attribute
+        setattr(token, "revoked", True)
+        db.commit()

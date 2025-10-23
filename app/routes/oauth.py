@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from starlette.config import Config
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 import os
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models import User
+from app.util import verify_token_hash
+from app.models import RefreshToken
 from app.auth import create_access_token, create_refresh_token_entry
 
 router = APIRouter(tags=["auth"])
@@ -63,10 +67,71 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    access = create_access_token({"sub": str(user.id)})
+    access = create_access_token({
+        "sub": str(user.id),
+        "role": user.role.value
+    })
     refresh = create_refresh_token_entry(db, user.id)  # type: ignore
-    return {
-        "access_token": access,
-        "refresh_token": refresh,
-        "token_type": "bearer"
-    }
+
+    # Create Response
+    response = JSONResponse(content={"message": "Login successful"})
+
+    # Store access token in a cookie
+    response.set_cookie(
+        key="access_token",
+        value=access,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=900
+    )
+
+    # Store refresh token
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=2592000  # 30 Days
+    )
+
+    return response
+
+
+@router.post("/refresh")
+def refresh_access_token(request: Request, db: Session = Depends(get_db)):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=401, detail="No refresh token provided")
+
+    # Find matching hashed token
+    stored_tokens = db.query(RefreshToken).filter(
+        RefreshToken.revoked == False,
+        RefreshToken.expires_at > datetime.now(timezone.utc)
+    ).all()
+
+    valid_token = None
+    for token in stored_tokens:
+        if verify_token_hash(refresh_token, token.token):  # type: ignore
+            valid_token = token
+            break
+
+    if not valid_token:
+        raise HTTPException(
+            status_code=401, detail="Invalid or expired refresh token")
+
+    # Generate new access token
+    access = create_access_token(
+        {"sub": str(valid_token.user_id), "roles": ["user"]})
+
+    response = JSONResponse(content={"message": "Token refreshed"})
+    response.set_cookie(
+        key="access_token",
+        value=access,
+        httponly=True,
+        samesite="lax",
+        max_age=900
+    )
+    return response
