@@ -7,8 +7,6 @@ from datetime import datetime, timezone, timedelta
 import secrets
 import uuid
 import os
-from app.models import RefreshToken
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -99,6 +97,7 @@ def create_refresh_token():
 
 def verify_refresh_token(refresh_token: str, db: Session, credentials_exception):
     """Verify hashed token and expiry."""
+    from app.models import RefreshToken
     hashed = hash_token(refresh_token)
 
     db_refresh_token = db.query(RefreshToken).filter(
@@ -109,7 +108,7 @@ def verify_refresh_token(refresh_token: str, db: Session, credentials_exception)
     if not db_refresh_token:
         raise credentials_exception
 
-    if (datetime.now(timezone.utc) > db_refresh_token.expires_at).scalar():
+    if datetime.now(timezone.utc) > db_refresh_token.expires_at:  # type: ignore
         db.delete(db_refresh_token)
         db.commit()
         raise credentials_exception
@@ -121,15 +120,16 @@ def verify_refresh_token(refresh_token: str, db: Session, credentials_exception)
 
 
 def create_refresh_token_entry(db: Session, user_id: int):
+    from app.models import RefreshToken
     # Generate a unique token (string)
     refresh_token = str(uuid.uuid4())
-
     # Hash it before storing
     hashed = hash_token(refresh_token)
 
-    expires_at = datetime.now(timezone.utc) + \
+    expires_at = (
+        datetime.now(timezone.utc) +
         timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
+    )
     new_entry = RefreshToken(
         user_id=user_id,
         token=hashed,
@@ -145,6 +145,7 @@ def create_refresh_token_entry(db: Session, user_id: int):
 
 def revoke_refresh_token(db: Session, refresh_token_id: int):
     """Mark a refresh token as revoked."""
+    from app.models import RefreshToken
     token = db.query(RefreshToken).filter(
         RefreshToken.id == refresh_token_id).first()
     if token:

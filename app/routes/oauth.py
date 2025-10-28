@@ -2,6 +2,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth, OAuthError
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from starlette.config import Config
 import os
 from app.util import hash_token
@@ -23,6 +25,8 @@ config = Config(".env")
 oauth = OAuth(config)
 
 IN_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
+
+
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 30))
 
@@ -49,16 +53,11 @@ async def login(request: Request):
             status_code=500, detail="Google OAuth client not configured")
 
     redirect_uri = request.url_for("auth_callback")
-    print("👉 Redirect URI being sent to Google:", redirect_uri)
     return await client.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/callback")
 async def auth_callback(request: Request, db: Session = Depends(get_db)):
-    """
-    Handles the callback from Google after user authorization.
-    Finds or creates the user, and sets secure access and refresh tokens in cookies.
-    """
     client = oauth.create_client("google")
     if not client:
         raise HTTPException(
@@ -70,35 +69,45 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=401, detail=f"Authentication failed: {e.error}")
 
-    userinfo = token_data.get("userinfo")
-    if not userinfo:
+    # Verify ID token
+    id_token_value = token_data.get("id_token")
+    if not id_token_value:
         raise HTTPException(
-            status_code=400, detail="Could not retrieve user info from token.")
+            status_code=400, detail="No ID token returned by Google")
 
-    email = userinfo.get("email")
+    try:
+        id_info = id_token.verify_oauth2_token(
+            id_token_value, google_requests.Request(), os.getenv("GOOGLE_CLIENT_ID")
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=401, detail=f"Invalid ID token: {str(e)}")
+
+    # Extract verified user info
+    email = id_info.get("email")
+    name = id_info.get("name")
+
     if not email:
         raise HTTPException(
-            status_code=400, detail="Email not provided by identity provider.")
+            status_code=400, detail="Email not found in ID token")
 
+    # Find or create user in DB
     user = db.query(User).filter(User.email == email).one_or_none()
     if not user:
-        user = User(
-            email=email,
-            name=userinfo.get("name") or email,
-        )
+        user = User(email=email, name=name or email)
         db.add(user)
         db.commit()
         db.refresh(user)
 
-    response_data = {
-        "message": "Login successful",
-        "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": user.role.value},
-    }
-    response = JSONResponse(content=response_data)
-
+    # Create JWT access + refresh tokens
     access_token = create_access_token(
         data={"sub": str(user.id), "role": user.role.value})
     refresh_token = create_refresh_token_entry(db, user.id)  # type: ignore
+
+    # Set them in cookies
+    response_data = {"message": "Login successful", "user": {
+        "id": str(user.id), "email": user.email, "name": user.name}}
+    response = JSONResponse(content=response_data)
 
     response.set_cookie(
         key="access_token",
@@ -118,6 +127,7 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         max_age=REFRESH_COOKIE_MAX_AGE,
         path="/auth",
     )
+
     return response
 
 
@@ -137,11 +147,10 @@ def refresh_access_token(request: Request, response: Response, db: Session = Dep
         payload = verify_refresh_token(
             incoming_refresh_token, db, credentials_exception)
         user_id = payload["user_id"]
-        refresh_token_id = cast(int, payload["refresh_token_id"])
+        refresh_token_id = cast(int, payload.get("id"))
     except HTTPException:
         response.delete_cookie("refresh_token")
         response.delete_cookie("access_token")
-        raise credentials_exception
         raise credentials_exception
 
     revoke_refresh_token(db, refresh_token_id)
