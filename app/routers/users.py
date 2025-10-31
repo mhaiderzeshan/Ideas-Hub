@@ -1,28 +1,16 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, status
-from app.models import User
+from app.db.models.user import User
 from sqlalchemy.orm import Session
-from app.database import get_db
-from typing import Final
+from app.db.database import get_db
+from app.db.models.user import User
 from jose import JWTError, jwt
-from dotenv import load_dotenv
-import os
+from app.core.config import settings
 
-load_dotenv()
-
-_secret = os.getenv("SECRET_KEY")
-if _secret is None:
-    raise ValueError("SECRET_KEY environment variable not set")
-
-SECRET_KEY: Final[str] = _secret
-
-_algorithm = os.getenv("ALGORITHM")
-if _algorithm is None:
-    raise ValueError("ALGORITHM environment variable not set")
-
-ALGORITHM: Final[str] = _algorithm
+SECRET_KEY = settings.SECRET_KEY.get_secret_value()
+ALGORITHM = settings.ALGORITHM
 
 
-router = APIRouter(tags=["User"])
+router = APIRouter(tags=["Users"])
 
 
 async def get_current_user_from_cookie(request: Request, db: Session = Depends(get_db)):

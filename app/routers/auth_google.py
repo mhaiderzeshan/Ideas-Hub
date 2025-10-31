@@ -1,48 +1,47 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, Response
+from fastapi import APIRouter, Request, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from starlette.config import Config
-import os
-from app.util import hash_token
-from app.models import RefreshToken
+from app.core.util import hash_token
+from app.db.models.token import RefreshToken
 from typing import cast
+from app.core.config import settings
 
-from app.database import get_db
-from app.models import User
-from app.auth import (
+from app.db.database import get_db
+from app.db.models.user import User
+from app.core.security import (
     create_access_token,
     create_refresh_token_entry,
     revoke_refresh_token,
     verify_refresh_token
 )
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Google Authentication"])
 
-config = Config(".env")
-oauth = OAuth(config)
+oauth = OAuth()
 
-IN_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
+IN_PRODUCTION = settings.ENVIRONMENT == "production"
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET.get_secret_value()
 
-
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 30))
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 ACCESS_COOKIE_MAX_AGE = ACCESS_TOKEN_EXPIRE_MINUTES * 60
 REFRESH_COOKIE_MAX_AGE = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
 oauth.register(
     name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
 )
 
 
-@router.get("/login")
+@router.get("/google/login")
 async def login(request: Request):
     """
     Redirects the user to Google's OAuth 2.0 consent screen.
@@ -77,7 +76,7 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
 
     try:
         id_info = id_token.verify_oauth2_token(
-            id_token_value, google_requests.Request(), os.getenv("GOOGLE_CLIENT_ID")
+            id_token_value, google_requests.Request(), GOOGLE_CLIENT_ID
         )
     except Exception as e:
         raise HTTPException(
@@ -185,43 +184,48 @@ def refresh_access_token(request: Request, response: Response, db: Session = Dep
     return {"message": "Token refreshed successfully"}
 
 
-@router.post("/logout")
-def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(request: Request, db: Session = Depends(get_db)):
     """
-    Logs the user out by revoking their refresh token and deleting session cookies.
+    Logs the user out.
 
-    This performs two actions:
-    1. Invalidates the refresh token on the server-side by marking it as 'revoked'.
-    2. Instructs the client's browser to delete the access and refresh token cookies.
+    This endpoint is idempotent. It ensures the client is in a logged-out state
+    by performing two actions:
+    1. If a valid refresh token is provided, it's revoked on the server-side.
+    2. It instructs the client's browser to delete the session cookies, regardless
+       of whether a valid session existed.
     """
     refresh_token_value = request.cookies.get("refresh_token")
 
+    # If a token exists, attempt to revoke it on the server.
+    # We don't raise an error if the token is invalid or not found, as the
+    # end goal is simply to ensure the session is terminated.
     if refresh_token_value:
         try:
             hashed_token = hash_token(refresh_token_value)
-
-            # Find the corresponding token in the database
-            token_record = (
-                db.query(RefreshToken)
-                .filter(RefreshToken.token == hashed_token, RefreshToken.revoked.is_(False))
-                .one_or_none()
-            )
+            token_record = db.query(RefreshToken).filter(
+                RefreshToken.token == hashed_token,
+                RefreshToken.revoked.is_(False)
+            ).one_or_none()
 
             if token_record:
                 setattr(token_record, "revoked", True)
                 db.commit()
-        except Exception:
-            # logger.error("Error revoking refresh token during logout.")
+        except Exception as e:
+            # This is a place for logging, as an unexpected error here could
+            # indicate a problem. But we don't let it stop the logout process.
+            # logger.error(f"Error during token revocation on logout: {e}")
             pass
 
-    response_data = {"message": "Logout successful"}
-    final_response = JSONResponse(content=response_data)
+    # ALWAYS instruct the browser to clear cookies. This cleans up stale cookies
+    # and ensures the client-side state is clean.
+    response = JSONResponse(
+        content={"message": "You have been successfully logged out."})
+    response.delete_cookie(
+        "access_token", path="/", secure=IN_PRODUCTION, httponly=True, samesite="lax"
+    )
+    response.delete_cookie(
+        "refresh_token", path="/auth", secure=IN_PRODUCTION, httponly=True, samesite="lax"
+    )
 
-    final_response.delete_cookie("access_token")
-    final_response.delete_cookie("refresh_token", path="/auth")
-
-    for header in final_response.headers.raw:
-        if header[0] == b"set-cookie":
-            response.raw_headers.append(header)
-
-    return response_data
+    return response

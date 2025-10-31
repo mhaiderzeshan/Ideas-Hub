@@ -1,32 +1,17 @@
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, Final
+from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app.util import hash_token
+from app.core.util import hash_token
 from datetime import datetime, timezone, timedelta
 import secrets
 import uuid
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from app.core.config import settings
 
 
-_secret = os.getenv("SECRET_KEY")
-if _secret is None:
-    raise ValueError("SECRET_KEY environment variable not set")
-
-SECRET_KEY: Final[str] = _secret
-
-_algorithm = os.getenv("ALGORITHM")
-if _algorithm is None:
-    raise ValueError("ALGORITHM environment variable not set")
-
-ALGORITHM: Final[str] = _algorithm
-
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+SECRET_KEY = settings.SECRET_KEY.get_secret_value()
+ALGORITHM = settings.ALGORITHM
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 
 def create_access_token(
@@ -49,7 +34,7 @@ def create_access_token(
     if expires_delta:
         expire = now + expires_delta
     else:
-        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({
         "iat": now,
@@ -97,7 +82,7 @@ def create_refresh_token():
 
 def verify_refresh_token(refresh_token: str, db: Session, credentials_exception):
     """Verify hashed token and expiry."""
-    from app.models import RefreshToken
+    from app.db.models.token import RefreshToken
     hashed = hash_token(refresh_token)
 
     db_refresh_token = db.query(RefreshToken).filter(
@@ -120,7 +105,7 @@ def verify_refresh_token(refresh_token: str, db: Session, credentials_exception)
 
 
 def create_refresh_token_entry(db: Session, user_id: int):
-    from app.models import RefreshToken
+    from app.db.models.token import RefreshToken
     # Generate a unique token (string)
     refresh_token = str(uuid.uuid4())
     # Hash it before storing
@@ -145,7 +130,7 @@ def create_refresh_token_entry(db: Session, user_id: int):
 
 def revoke_refresh_token(db: Session, refresh_token_id: int):
     """Mark a refresh token as revoked."""
-    from app.models import RefreshToken
+    from app.db.models.token import RefreshToken
     token = db.query(RefreshToken).filter(
         RefreshToken.id == refresh_token_id).first()
     if token:
