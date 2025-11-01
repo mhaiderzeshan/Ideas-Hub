@@ -44,6 +44,8 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
         content={"message": "Signup successful. Please login."}
     )
 
+# local login route
+
 
 @router.post("/login")
 async def login(request: Request, response: Response, db: Session = Depends(get_db)):
