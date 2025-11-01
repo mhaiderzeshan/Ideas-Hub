@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.db.database import engine, Base
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers.auth_google import router as oauth_router
 from app.core.config import settings
 from app.routers.users import router as user_router
@@ -10,6 +11,15 @@ SECRET_KEY = settings.SECRET_KEY.get_secret_value()
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(local_auth_router)
 app.include_router(oauth_router)

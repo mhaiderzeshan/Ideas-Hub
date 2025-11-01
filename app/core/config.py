@@ -7,6 +7,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         extra = "ignore"
 
+    db_url: str
     ENVIRONMENT: str = "production"
     SECRET_KEY: SecretStr
     ALGORITHM: str = "HS256"
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: SecretStr
     GOOGLE_REDIRECT_URI: str
+    CORS_ORIGINS: list[str] = ["*"]
 
 
 settings = Settings()  # type: ignore
