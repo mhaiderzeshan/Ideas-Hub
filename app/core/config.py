@@ -7,7 +7,11 @@ class Settings(BaseSettings):
         env_file = ".env"
         extra = "ignore"
 
-    db_url: str
+    DB_USER: str
+    DB_PASSWORD: SecretStr
+    DB_HOST: str
+    DB_PORT: str
+    DB_NAME: str
     ENVIRONMENT: str = "production"
     SECRET_KEY: SecretStr
     ALGORITHM: str = "HS256"
