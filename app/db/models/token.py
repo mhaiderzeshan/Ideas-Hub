@@ -5,6 +5,7 @@ from app.db.database import Base
 from datetime import datetime
 
 
+
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     id: Mapped[int] = mapped_column(
