@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# Install OS dependencies
+RUN apt-get update && apt-get install -y gcc libssl-dev default-libmysqlclient-dev && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 
