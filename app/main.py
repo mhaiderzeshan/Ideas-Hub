@@ -36,31 +36,3 @@ Base.metadata.create_all(bind=engine)
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
-
-
-app = FastAPI()
-
-
-@app.get("/test-db")
-def test_db():
-    try:
-        conn = mysql.connector.connect(
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            host=os.getenv("DB_HOST"),
-            port=os.getenv("DB_PORT"),
-            database=os.getenv("DB_NAME"),
-            ssl_ca=os.getenv("DB_SSL_CA")
-        )
-        cursor = conn.cursor()
-        cursor.execute("SELECT NOW();")
-
-        result: Optional[Tuple[Any, ...]] = cursor.fetchone()  # type: ignore
-        if result:
-            print(result[0])
-
-        else:
-            print("No result found")
-
-    except Exception as e:
-        return {"success": False, "error": str(e)}
