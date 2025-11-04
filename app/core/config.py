@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: SecretStr
     GOOGLE_REDIRECT_URI: str
     CORS_ORIGINS: list[str] = ["*"]
+    REDIS_URL: str
 
 
 settings = Settings()  # type: ignore

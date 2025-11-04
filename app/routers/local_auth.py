@@ -3,6 +3,7 @@ from app.schemas.user import UserCreate, UserResponse
 from fastapi.responses import JSONResponse
 from app.core.util import hashed_password, verify_hashed_password
 from sqlalchemy.orm import Session
+from app.core.rate_limiter import rate_limit
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models.user import User
@@ -22,7 +23,7 @@ REFRESH_COOKIE_MAX_AGE = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 router = APIRouter(tags=["Local Authentication"])
 
 
-@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit)])
 async def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
@@ -47,7 +48,7 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
 # local login route
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit)])
 async def login(request: Request, response: Response, db: Session = Depends(get_db)):
     # Try to detect request type automatically
     content_type = request.headers.get("content-type", "")

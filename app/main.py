@@ -6,9 +6,6 @@ from app.routers.auth_google import router as oauth_router
 from app.core.config import settings
 from app.routers.users import router as user_router
 from app.routers.local_auth import router as local_auth_router
-import mysql.connector
-import os
-from typing import Optional, Tuple, Any
 
 
 SECRET_KEY = settings.SECRET_KEY.get_secret_value()
