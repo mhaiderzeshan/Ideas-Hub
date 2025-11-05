@@ -1,7 +1,6 @@
 from pydantic import BaseModel, constr
 from typing import Annotated
 import enum
-from datetime import datetime
 
 
 class UserRole(str, enum.Enum):

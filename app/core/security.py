@@ -1,3 +1,4 @@
+from fastapi import Request, HTTPException, status
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -46,7 +47,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def verify_token(token: str, credentials_exception) -> str:
+def verify_token(token: str, credentials_exception) -> dict[str, Any]:
     """
     Verify the JWT token and return the subject.
 
@@ -63,10 +64,7 @@ def verify_token(token: str, credentials_exception) -> str:
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None or not isinstance(username, str):
-            raise credentials_exception
-        return username
+        return payload
     except JWTError:
         raise credentials_exception
 
@@ -137,3 +135,12 @@ def revoke_refresh_token(db: Session, refresh_token_id: int):
         # use setattr to avoid static type check errors assigning a Literal to a Column-typed attribute
         setattr(token, "revoked", True)
         db.commit()
+
+
+def get_access_token_from_cookie(request: Request) -> str:
+    """Get the access token from the cookie."""
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return token
