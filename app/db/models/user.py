@@ -1,21 +1,15 @@
-import sqlalchemy as sa
 from sqlalchemy import String, Enum, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 from datetime import datetime
 from app.db.database import Base
-import enum
+from app.db.models.enum_json import UserRole
+from app.db.models.mixin import UUIDMixin
 
 
-class UserRole(str, enum.Enum):
-    admin = "admin"
-    user = "user"
-
-
-class User(Base):
+class User(UUIDMixin, Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     email: Mapped[str] = mapped_column(
         String(100), unique=True, nullable=False)
@@ -26,3 +20,5 @@ class User(Base):
         DateTime, server_default=func.now())
 
     refresh_tokens = relationship("RefreshToken", back_populates="user")
+    ideas = relationship("Idea", back_populates="user",
+                         cascade="all, delete-orphan")
