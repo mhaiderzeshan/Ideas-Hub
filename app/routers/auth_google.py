@@ -4,14 +4,15 @@ from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from app.db.database import get_db
+from app.db.models.user import User
 from app.core.util import hash_token
 from app.db.models.token import RefreshToken
 from typing import cast
 from app.core.rate_limiter import rate_limit
 from app.core.config import settings
 
-from app.db.database import get_db
-from app.db.models.user import User
+
 from app.core.security import (
     create_access_token,
     create_refresh_token_entry,

@@ -19,6 +19,10 @@ class User(UUIDMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now())
 
+    def __init__(self, email: str, name: str | None = None, **kw):
+        super().__init__(**kw)
+        self.email = email
+        self.name = name or email
+
     refresh_tokens = relationship("RefreshToken", back_populates="user")
-    ideas = relationship("Idea", back_populates="user",
-                         cascade="all, delete-orphan")
+    ideas = relationship("Idea", back_populates="author", cascade="all, delete-orphan")
