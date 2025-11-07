@@ -11,13 +11,13 @@ class Idea(UUIDMixin, Base):
 
     current_version_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("idea_versions.id", ondelete="SET NULL"),
+        ForeignKey("idea_versions.id", name="fk_ideas_current_version_id", ondelete="SET NULL", use_alter=True),
         nullable=True
     )
 
     author_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", name="fk_ideas_author_id", ondelete="CASCADE"),
         nullable=False
     )
 
@@ -39,7 +39,7 @@ class Idea(UUIDMixin, Base):
 
     # Relationships
     versions = relationship(
-        "IdeaVersion", back_populates="idea", cascade="all, delete",foreign_keys="[IdeaVersion.idea_id]")
+        "IdeaVersion", back_populates="idea", cascade="all, delete", foreign_keys="[IdeaVersion.idea_id]")
     stats = relationship("IdeaStat", back_populates="idea",
                          uselist=False, cascade="all, delete")
     author = relationship("User", back_populates="ideas")
@@ -52,7 +52,7 @@ class IdeaVersion(UUIDMixin, Base):
 
     idea_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("ideas.id", ondelete="CASCADE"),
+        ForeignKey("ideas.id", name="fk_idea_versions_idea_id", ondelete="CASCADE"),
         nullable=False
     )
 
@@ -68,7 +68,7 @@ class IdeaVersion(UUIDMixin, Base):
 
     # Relationship
     idea = relationship("Idea", back_populates="versions",
-    foreign_keys=[idea_id])
+                        foreign_keys=[idea_id])
 
 
 class IdeaStat(Base):
@@ -76,7 +76,7 @@ class IdeaStat(Base):
 
     idea_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("ideas.id", ondelete="CASCADE"),
+        ForeignKey("ideas.id", name="fk_idea_stats_idea_id", ondelete="CASCADE"),
         primary_key=True
     )
 
