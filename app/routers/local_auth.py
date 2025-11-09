@@ -33,7 +33,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     # Check if user already exists
     query = select(User).where(User.email == user.email)
     result = await db.execute(query)
-    db_user = result.scalar_one_or_none() 
+    db_user = result.scalar_one_or_none()
 
     if db_user:
         raise HTTPException(
@@ -56,7 +56,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/login") # dependencies=[Depends(rate_limit)])
+@router.post("/login")  # dependencies=[Depends(rate_limit)])
 async def login(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     content_type = request.headers.get("content-type", "")
     email = None
@@ -73,10 +73,12 @@ async def login(request: Request, response: Response, db: AsyncSession = Depends
         password = form_data.get("password")
 
     else:
-        raise HTTPException(status_code=415, detail="Unsupported content type. Use application/json or application/x-www-form-urlencoded.")
+        raise HTTPException(
+            status_code=415, detail="Unsupported content type. Use application/json or application/x-www-form-urlencoded.")
 
     if not email or not password:
-        raise HTTPException(status_code=400, detail="Email and password are required.")
+        raise HTTPException(
+            status_code=400, detail="Email and password are required.")
 
     query = select(User).where(User.email == email)
     result = await db.execute(query)
@@ -87,7 +89,7 @@ async def login(request: Request, response: Response, db: AsyncSession = Depends
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
-    
+
     refresh_token = await create_refresh_token_entry(db, user.id)
 
     # Create access token
@@ -98,7 +100,7 @@ async def login(request: Request, response: Response, db: AsyncSession = Depends
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,
+        secure=IN_PRODUCTION,
         samesite="lax",
         max_age=ACCESS_COOKIE_MAX_AGE,
     )
