@@ -5,10 +5,13 @@ from app.db.database import get_db
 from app.schemas.post_idea import IdeaCreate, IdeaResponse, IdeaUpdate
 from sqlalchemy import select, func
 from datetime import datetime
+from typing import Optional
 from app.core.dependencies import get_current_user
 from app.db.models.idea import Idea, IdeaVersion
 from app.db.models.user import User
 import uuid
+from app.crud.idea import get_idea_by_id
+
 
 router = APIRouter(prefix="/ideas", tags=["Ideas"])
 
@@ -19,6 +22,7 @@ async def create_idea(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+
     new_idea = Idea(
         id=str(uuid.uuid4()),
         author_id=current_user.id,
@@ -55,3 +59,27 @@ async def create_idea(
 
     return created_idea_with_version
 
+
+@router.get("/{id}", response_model=IdeaResponse)
+async def get_idea(
+    id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
+    """
+    Get a single idea by its ID.
+
+    Returns the canonical idea data along with the full content of its current version.
+    - Public ideas are visible to everyone.
+    - Private ideas are only visible to their authors.
+    """
+    idea = await get_idea_by_id(
+        db,
+        idea_id=id,
+        requesting_user=current_user)
+
+    if not idea:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Idea not found")
+
+    return idea

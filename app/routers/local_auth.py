@@ -100,7 +100,7 @@ async def login(request: Request, response: Response, db: AsyncSession = Depends
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=IN_PRODUCTION,
+        secure=False,
         samesite="lax",
         max_age=ACCESS_COOKIE_MAX_AGE,
     )
