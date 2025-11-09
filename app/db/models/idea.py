@@ -35,9 +35,16 @@ class Idea(UUIDMixin, Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), onupdate=func.now(), nullable=False)
+        DateTime(timezone=True),server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
+
+    current_version = relationship(
+        "IdeaVersion", 
+        foreign_keys=[current_version_id], 
+        post_update=True 
+    )
+
     versions = relationship(
         "IdeaVersion", back_populates="idea", cascade="all, delete", foreign_keys="[IdeaVersion.idea_id]")
     stats = relationship("IdeaStat", back_populates="idea",

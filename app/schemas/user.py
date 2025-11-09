@@ -1,6 +1,7 @@
 from pydantic import BaseModel, constr
 from typing import Annotated
 import enum
+from uuid import UUID
 
 
 class UserRole(str, enum.Enum):
@@ -23,7 +24,7 @@ class UserLogin(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: int
+    id: UUID
     name: str
     email: str
     role: UserRole = UserRole.user
