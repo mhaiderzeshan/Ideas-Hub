@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, DateTime, func, JSON, Enum, String, Integer, text, UniqueConstraint, Text, BigInteger
+from sqlalchemy import ForeignKey, DateTime, func, JSON, Enum, String, Integer, text, UniqueConstraint, Text, BigInteger, Boolean
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.db.database import Base
 from app.db.models.mixin import UUIDMixin
@@ -11,7 +11,8 @@ class Idea(UUIDMixin, Base):
 
     current_version_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("idea_versions.id", name="fk_ideas_current_version_id", ondelete="SET NULL", use_alter=True),
+        ForeignKey("idea_versions.id", name="fk_ideas_current_version_id",
+                   ondelete="SET NULL", use_alter=True),
         nullable=True
     )
 
@@ -35,14 +36,16 @@ class Idea(UUIDMixin, Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True),server_default=func.now(), onupdate=func.now(), nullable=False)
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), nullable=False, index=True)
 
     # Relationships
 
     current_version = relationship(
-        "IdeaVersion", 
-        foreign_keys=[current_version_id], 
-        post_update=True 
+        "IdeaVersion",
+        foreign_keys=[current_version_id],
+        post_update=True
     )
 
     versions = relationship(
@@ -59,7 +62,8 @@ class IdeaVersion(UUIDMixin, Base):
 
     idea_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("ideas.id", name="fk_idea_versions_idea_id", ondelete="CASCADE"),
+        ForeignKey("ideas.id", name="fk_idea_versions_idea_id",
+                   ondelete="CASCADE"),
         nullable=False
     )
 
@@ -83,7 +87,8 @@ class IdeaStat(Base):
 
     idea_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("ideas.id", name="fk_idea_stats_idea_id", ondelete="CASCADE"),
+        ForeignKey("ideas.id", name="fk_idea_stats_idea_id",
+                   ondelete="CASCADE"),
         primary_key=True
     )
 

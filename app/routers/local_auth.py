@@ -56,7 +56,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/login")  # dependencies=[Depends(rate_limit)])
+@router.post("/login", dependencies=[Depends(rate_limit)])
 async def login(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     content_type = request.headers.get("content-type", "")
     email = None

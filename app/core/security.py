@@ -44,7 +44,8 @@ def create_refresh_token() -> str:
 def get_access_token_from_cookie(request: Request) -> str:
     token = request.cookies.get("access_token")
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return token
 
 
@@ -79,7 +80,8 @@ async def create_refresh_token_entry(db: AsyncSession, user_id: int) -> str:
     raw_refresh_token = create_refresh_token()
     hashed_token = hash_token(raw_refresh_token)
 
-    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expires_at = datetime.now(timezone.utc) + \
+        timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     new_entry = RefreshToken(
         user_id=user_id,
         token=hashed_token,
@@ -93,11 +95,12 @@ async def create_refresh_token_entry(db: AsyncSession, user_id: int) -> str:
     # Return the raw, un-hashed token to the user
     return raw_refresh_token
 
+
 async def revoke_refresh_token(db: AsyncSession, refresh_token_id: int):
     from app.db.models.token import RefreshToken
-    
+
     token = await db.get(RefreshToken, refresh_token_id)
-    
+
     if token and not token.revoked:
         setattr(token, "revoked", True)
         await db.commit()
