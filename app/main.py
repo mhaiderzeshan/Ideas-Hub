@@ -10,6 +10,7 @@ from app.routers.local_auth import router as local_auth_router
 from app.routers.auth_google import router as oauth_router
 from app.routers.users import router as user_router
 from app.routers.ideas import router as idea_router
+from app.routers.auth import router as auth_router
 
 
 async def create_db_and_tables():
@@ -49,6 +50,7 @@ app.add_middleware(
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 app.include_router(local_auth_router)
+app.include_router(auth_router)
 app.include_router(oauth_router)
 app.include_router(user_router)
 app.include_router(idea_router)

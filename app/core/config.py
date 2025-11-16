@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import SecretStr
+from pydantic import SecretStr, EmailStr
 
 
 class Settings(BaseSettings):
@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str
     CORS_ORIGINS: list[str] = ["*"]
     REDIS_URL: str
+
+    BREVO_API_KEY: SecretStr
+    EMAIL_FROM: EmailStr
+    EMAIL_FROM_NAME: str = "Ideas Hub"
+    FRONTEND_URL: str = "http://localhost:3000"
+    EMAIL_TIMEOUT: int = 30
+    MAX_RETRIES: int = 3
 
 
 settings = Settings()  # type: ignore

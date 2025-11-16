@@ -27,8 +27,7 @@ router = APIRouter(tags=["Local Authentication"])
     "/signup",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(rate_limit)]
-)
+    dependencies=[Depends(rate_limit)])
 async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     # Check if user already exists
     query = select(User).where(User.email == user.email)
