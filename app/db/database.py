@@ -1,9 +1,6 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.core.config import settings
-from dotenv import load_dotenv
-
-load_dotenv()
 
 DB_USER = settings.DB_USER
 DB_PASSWORD = settings.DB_PASSWORD.get_secret_value()
@@ -20,8 +17,12 @@ if not SQLALCHEMY_DATABASE_URL:
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,
-    echo=True,  # Optional: to see generated SQL in logs
+    pool_pre_ping=True,     # Check if connections are alive
+    echo=False,             # Optional: to see generated SQL in logs
+    pool_size=5,           # Number of connections
+    max_overflow=10,        # Extra connections when needed
+    pool_timeout=30,        # Wait time for connection
+    pool_recycle=3600,      # Recycle connections after 1 hour
 )
 
 # Use async_sessionmaker for SQLAlchemy 2.0 async sessions

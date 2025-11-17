@@ -13,7 +13,7 @@ class User(UUIDMixin, Base):
 
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     email: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False)
+        String(100), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=True)
 
     # Password reset fields
