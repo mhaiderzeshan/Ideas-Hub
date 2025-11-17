@@ -99,8 +99,8 @@ async def login(request: Request, response: Response, db: AsyncSession = Depends
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=IN_PRODUCTION,
+        samesite="none",
         max_age=ACCESS_COOKIE_MAX_AGE,
     )
     response.set_cookie(
@@ -108,7 +108,7 @@ async def login(request: Request, response: Response, db: AsyncSession = Depends
         value=refresh_token,
         httponly=True,
         secure=IN_PRODUCTION,
-        samesite="strict",
+        samesite="none",
         max_age=REFRESH_COOKIE_MAX_AGE,
         path="/auth",
     )
