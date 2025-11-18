@@ -113,7 +113,7 @@ async def auth_callback(request: Request, response: Response, db: AsyncSession =
         value=f"Bearer {access_token}",
         httponly=True,  # Prevents JS access
         max_age=ACCESS_COOKIE_MAX_AGE,
-        samesite="lax",
+        samesite="none",
         secure=IN_PRODUCTION  # Use True in production
     )
     response.set_cookie(
@@ -121,7 +121,7 @@ async def auth_callback(request: Request, response: Response, db: AsyncSession =
         value=refresh_token,
         httponly=True,  # Prevents JS access
         max_age=REFRESH_COOKIE_MAX_AGE,
-        samesite="lax",
+        samesite="none",
         secure=IN_PRODUCTION  # Use True in production
     )
 
