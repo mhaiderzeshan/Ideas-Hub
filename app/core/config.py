@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     BREVO_API_KEY: SecretStr
     EMAIL_FROM: EmailStr
     EMAIL_FROM_NAME: str = "Ideas Hub"
-    FRONTEND_URL: str = "http://localhost:3000"
+    FRONTEND_URL: str = "http://localhost:5173"
     EMAIL_TIMEOUT: int = 30
     MAX_RETRIES: int = 3
 

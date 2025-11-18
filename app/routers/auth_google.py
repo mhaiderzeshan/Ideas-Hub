@@ -102,11 +102,6 @@ async def auth_callback(request: Request, response: Response, db: AsyncSession =
     refresh_token = await create_refresh_token_entry(db, user.id)
     access_token = create_access_token(data={"sub": str(user.id)})
 
-    redirect_url = "http://localhost:5173/dashboard"
-
-    # 2. Create a RedirectResponse object
-    response = RedirectResponse(url=redirect_url)
-
     # Set the access and refresh tokens in secure, HTTP-only cookies
     response.set_cookie(
         key="access_token",
@@ -124,6 +119,10 @@ async def auth_callback(request: Request, response: Response, db: AsyncSession =
         samesite="none",
         secure=IN_PRODUCTION  # Use True in production
     )
+
+    redirect_url = settings.FRONTEND_URL + "/dashboard"
+    response.status_code = status.HTTP_307_TEMPORARY_REDIRECT
+    response.headers["Location"] = redirect_url
 
     return response
 
