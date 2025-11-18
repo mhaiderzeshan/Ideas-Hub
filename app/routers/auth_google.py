@@ -53,6 +53,7 @@ async def login(request: Request):
         raise HTTPException(
             status_code=500, detail="Google OAuth client not configured")
     redirect_uri = request.url_for("auth_callback")
+    print(f"DEBUG: Generating authorize redirect for URI: {redirect_uri}")
     return await client.authorize_redirect(request, redirect_uri)
 
 
