@@ -44,7 +44,7 @@ app.add_middleware(
 app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET_KEY,
-    https_only=bool(getattr(settings, "IN_PRODUCTION", False)),
+    https_only=settings.ENVIRONMENT == "production",
     same_site='none'
 )
 
