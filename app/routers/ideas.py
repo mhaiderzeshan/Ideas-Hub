@@ -5,7 +5,7 @@ from app.db.database import get_db
 from app.schemas.idea_schemas import IdeaCreate, IdeaResponse, IdeaUpdate, PaginatedIdeasResponse
 from sqlalchemy import select
 from typing import Optional, List
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_verified_user
 from app.db.models.idea import Idea, IdeaVersion
 from app.db.models.user import User
 import uuid
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/ideas", tags=["Ideas"])
 async def create_idea(
     idea_data: IdeaCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_verified_user)
 ):
 
     new_idea = Idea(

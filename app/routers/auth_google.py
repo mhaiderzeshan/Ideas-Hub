@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from datetime import datetime
 from typing import cast
 
 # Local application imports
@@ -48,17 +49,24 @@ oauth.register(
 
 @router.get("/google/login")
 async def login(request: Request):
+    """
+    Initiate Google OAuth login flow.
+    Redirects user to Google's consent screen.
+    """
     client = oauth.create_client("google")
     if not client:
         raise HTTPException(
             status_code=500, detail="Google OAuth client not configured")
     redirect_uri = request.url_for("auth_callback")
-    print(f"DEBUG: Generating authorize redirect for URI: {redirect_uri}")
     return await client.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/callback")
 async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Handle Google OAuth callback.
+    Creates or updates user with AUTOMATIC email verification.
+    """
     client = oauth.create_client("google")
     if not client:
         raise HTTPException(
@@ -85,6 +93,7 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
             status_code=401, detail=f"Invalid ID token: {str(e)}")
 
     email = id_info.get("email")
+
     if not email:
         raise HTTPException(
             status_code=400, detail="Email not found in ID token")
@@ -93,11 +102,26 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     user = result.scalar_one_or_none()
 
-    if not user:
-        user = User(email=email, name=id_info.get("name") or email)
+    if user:
+        user.is_email_verified = True
+        user.email_verified_at = datetime.utcnow()
+        user.auth_provider = "google"
+        # Clear verification tokens
+        user.email_verification_token = None
+        user.email_verification_token_expiry = None
+
+    else:
+        user = User(
+            email=email,
+            name=id_info.get("name") or email,
+            auth_provider="google",
+            is_email_verified=True,
+            email_verified_at=datetime.utcnow(),
+        )
         db.add(user)
-        await db.commit()
-        await db.refresh(user)
+
+    await db.commit()
+    await db.refresh(user)
 
     # --- Create Tokens ---
     refresh_token = await create_refresh_token_entry(db, user.id)

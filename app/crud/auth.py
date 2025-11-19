@@ -246,6 +246,19 @@ class AuthService:
 
         if not user:
             return None
+        
+        # Check if account is locked
+        if user.failed_login_attempts >= 5:
+            # Check if lockout period has passed (e.g., 30 minutes)
+            if user.last_failed_login_at:
+                lockout_duration = timedelta(minutes=30)
+                if datetime.utcnow() - user.last_failed_login_at < lockout_duration:
+                    logger.warning(f"Locked account login attempt for user {user.id}")
+                    return None  # Still locked
+            else:
+                # Lockout expired, reset attempts
+                user.failed_login_attempts = 0
+                user.last_failed_login_at = None
 
         is_valid = await async_verify_hashed_password(password, user.password_hash)
 
@@ -253,11 +266,13 @@ class AuthService:
             if is_valid:
                 user.last_login_at = datetime.utcnow()
                 user.failed_login_attempts = 0
+                user.last_failed_login_at = None
                 await db.commit()
                 return user
             else:
                 user.failed_login_attempts = (
                     user.failed_login_attempts or 0) + 1
+                user.last_failed_login_at = datetime.utcnow()
                 if user.failed_login_attempts >= 5:
                     logger.warning(
                         f"Account locked for user {user.id} after 5 failed attempts")

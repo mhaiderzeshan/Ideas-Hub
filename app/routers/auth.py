@@ -14,7 +14,7 @@ from app.schemas.auth import (
 from app.crud.auth import auth_service
 from app.db.models.user import User
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Forgot-password Authentication"])
 
 # Constants (no change)
 RESET_TOKEN_EXPIRY_HOURS = 1

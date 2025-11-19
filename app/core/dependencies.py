@@ -33,15 +33,31 @@ async def get_current_user(
     return user
 
 
+async def get_verified_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    Dependency to ensure user has verified email.
+    Use this for write operations (create, update, delete).
+    """
+    if not current_user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email to perform this action. Check your inbox for the verification link.",
+            headers={"X-Requires-Verification": "true"}
+        )
+    return current_user
+
+
 async def get_idea_for_update(
     idea_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_verified_user),
 ) -> Idea:
-    from app.core.role_based_auth import require_admin
     """
     Dependency to get an Idea and verify ownership for updates.
     """
+    from app.core.role_based_auth import require_admin
     query = (
         select(Idea)
         .options(selectinload(Idea.current_version))

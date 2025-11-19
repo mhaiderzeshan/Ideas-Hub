@@ -28,6 +28,10 @@ class UserResponse(BaseModel):
     name: str
     email: str
     role: UserRole = UserRole.user
+    is_email_verified: bool = False
+    email_verified_at: bool = False
+    created_at: str
+    last_login_at: str | None = None
 
     class Config:
         from_attributes = True
