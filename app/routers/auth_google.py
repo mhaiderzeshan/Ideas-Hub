@@ -133,7 +133,7 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
     # Set the access and refresh tokens in secure, HTTP-only cookies
     response.set_cookie(
         key="access_token",
-        value=f"Bearer {access_token}",
+        value=access_token,
         httponly=True,  # Prevents JS access
         max_age=ACCESS_COOKIE_MAX_AGE,
         samesite="none",
