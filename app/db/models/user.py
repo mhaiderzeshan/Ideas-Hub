@@ -19,18 +19,18 @@ class User(UUIDMixin, Base):
     # Email verification fields
     is_email_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False)
-    email_verification_token: Mapped[Optional[str]] = mapped_column(
+    email_verification_token: Mapped[str] = mapped_column(
         String(255), nullable=True)
-    email_verification_token_expiry: Mapped[Optional[datetime]] = mapped_column(
+    email_verification_token_expiry: Mapped[datetime] = mapped_column(
         DateTime, nullable=True)
-    email_verified_at: Mapped[Optional[datetime]] = mapped_column(
+    email_verified_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=True)
 
     # Password reset fields
-    reset_token: Mapped[Optional[str]] = mapped_column(
+    reset_token: Mapped[str] = mapped_column(
         String(500), nullable=True)
-    reset_token_expires: Mapped[Optional[datetime]
-                                ] = mapped_column(DateTime, nullable=True)
+    reset_token_expires: Mapped[datetime] = mapped_column(
+        DateTime, nullable=True)
     reset_attempts: Mapped[int] = mapped_column(Integer, default=0)
 
     # Security tracking

@@ -188,7 +188,7 @@ async def refresh_access_token(request: Request, response: Response, db: AsyncSe
         httponly=True,
         max_age=ACCESS_COOKIE_MAX_AGE,
         samesite="lax",
-        secure=IN_PRODUCTION,
+        secure=True,
     )
     response.set_cookie(
         key="refresh_token",
@@ -196,7 +196,7 @@ async def refresh_access_token(request: Request, response: Response, db: AsyncSe
         httponly=True,
         max_age=REFRESH_COOKIE_MAX_AGE,
         samesite="lax",
-        secure=IN_PRODUCTION,
+        secure=True,
     )
 
     return {"message": "Token refreshed successfully"}
@@ -223,10 +223,10 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
             pass  # Fails silently if token is invalid or already revoked
 
     response.delete_cookie(
-        key="access_token", httponly=True, samesite="lax", secure=IN_PRODUCTION
+        key="access_token", httponly=True, samesite="lax", secure=True
     )
     response.delete_cookie(
-        key="refresh_token", httponly=True, samesite="lax", secure=IN_PRODUCTION
+        key="refresh_token", httponly=True, samesite="lax", secure=True
     )
 
     return {"message": "You have been successfully logged out."}

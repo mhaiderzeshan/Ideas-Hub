@@ -2,6 +2,7 @@ from pydantic import BaseModel, constr
 from typing import Annotated
 import enum
 from uuid import UUID
+from datetime import datetime
 
 
 class UserRole(str, enum.Enum):
@@ -29,9 +30,9 @@ class UserResponse(BaseModel):
     email: str
     role: UserRole = UserRole.user
     is_email_verified: bool = False
-    email_verified_at: bool = False
-    created_at: str
-    last_login_at: str | None = None
+    email_verified_at: datetime | None = None
+    created_at: datetime
+    last_login_at: datetime | None = None
 
     class Config:
         from_attributes = True
