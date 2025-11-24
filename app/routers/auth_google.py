@@ -127,7 +127,7 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
     refresh_token = await create_refresh_token_entry(db, user.id)
     access_token = create_access_token(data={"sub": str(user.id)})
 
-    redirect_url = settings.FRONTEND_URL + "/dashboard"
+    redirect_url = settings.FRONTEND_URL + "/auth/callback"
     response = RedirectResponse(url=redirect_url)
 
     # Set the access and refresh tokens in secure, HTTP-only cookies
@@ -137,7 +137,7 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
         httponly=True,  # Prevents JS access
         max_age=ACCESS_COOKIE_MAX_AGE,
         samesite="none",
-        secure=True  # Use True in production
+        secure=False
     )
     response.set_cookie(
         key="refresh_token",
@@ -145,7 +145,7 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
         httponly=True,  # Prevents JS access
         max_age=REFRESH_COOKIE_MAX_AGE,
         samesite="none",
-        secure=True  # Use True in production
+        secure=True
     )
 
     return response
