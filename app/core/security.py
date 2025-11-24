@@ -3,7 +3,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 import secrets
 import uuid
@@ -42,28 +42,32 @@ def create_refresh_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def get_access_token_from_cookie(request: Request) -> str:
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    return token
-
-
 async def verify_refresh_token(refresh_token: str, db: AsyncSession, credentials_exception):
     from app.db.models.token import RefreshToken
+
     hashed = hash_token(refresh_token)
 
-    query = select(RefreshToken).where(
-        RefreshToken.token == hashed,
-        RefreshToken.revoked == False
-    )
+    query = select(RefreshToken).where(RefreshToken.token == hashed)
     result = await db.execute(query)
     db_refresh_token = result.scalar_one_or_none()
 
+    # Check if token exists at all
     if not db_refresh_token:
         raise credentials_exception
 
+    # Reuse Detection
+    if db_refresh_token.revoked:
+
+        stmt = update(RefreshToken).where(
+            RefreshToken.user_id == db_refresh_token.user_id
+        ).values(revoked=True)
+
+        await db.execute(stmt)
+        await db.commit()
+
+        raise credentials_exception
+
+    # 4. Check Expiration
     if datetime.now(timezone.utc) > db_refresh_token.expires_at:
         await db.delete(db_refresh_token)
         await db.commit()

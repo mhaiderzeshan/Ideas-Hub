@@ -1,17 +1,40 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from jose import JWTError
-from app.core.security import get_access_token_from_cookie, verify_token
+from app.core.security import verify_token
 from app.db.models.idea import Idea
 from app.db.database import get_db
 from app.db.models.user import User
 
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
+
+
+async def get_token_from_header_or_cookie(
+    request: Request,
+    header_token: str | None = Depends(oauth2_scheme)
+) -> str:
+    """
+    Prioritize Authorization Header.
+    If missing, fall back to Cookies.
+    """
+    if header_token:
+        return header_token
+
+    # Check Cookies
+    cookie_token = request.cookies.get("access_token")
+    if cookie_token:
+        return cookie_token
+
+    raise HTTPException(status_code=401, detail="Not authenticated")
+
+
 async def get_current_user(
-    token: str = Depends(get_access_token_from_cookie),
+    token: str = Depends(get_token_from_header_or_cookie),
     db: AsyncSession = Depends(get_db)
 ) -> User:
 
@@ -25,7 +48,12 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    user = await db.get(User, UUID(user_id))
+    try:
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid user ID format")
+
+    user = await db.get(User, user_uuid)
 
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")

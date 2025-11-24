@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import cast
 
 # Local application imports
@@ -116,7 +116,7 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
             name=id_info.get("name") or email,
             auth_provider="google",
             is_email_verified=True,
-            email_verified_at=datetime.utcnow(),
+            email_verified_at=datetime.now(timezone.utc),
         )
         db.add(user)
 
@@ -137,7 +137,7 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
         httponly=True,  # Prevents JS access
         max_age=ACCESS_COOKIE_MAX_AGE,
         samesite="none",
-        secure=False
+        secure=True
     )
     response.set_cookie(
         key="refresh_token",
@@ -187,7 +187,7 @@ async def refresh_access_token(request: Request, response: Response, db: AsyncSe
         value=f"Bearer {new_access_token}",
         httponly=True,
         max_age=ACCESS_COOKIE_MAX_AGE,
-        samesite="lax",
+        samesite="none",
         secure=True,
     )
     response.set_cookie(
@@ -195,7 +195,7 @@ async def refresh_access_token(request: Request, response: Response, db: AsyncSe
         value=new_refresh_token,
         httponly=True,
         max_age=REFRESH_COOKIE_MAX_AGE,
-        samesite="lax",
+        samesite="none",
         secure=True,
     )
 
