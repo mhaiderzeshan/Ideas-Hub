@@ -28,6 +28,13 @@ class IdeaUpdate(BaseModel):
     stage: Optional[StageEnum] = None
 
 
+class AuthorShort(BaseModel):
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class IdeaVersionResponse(BaseModel):
     id: str
     title: str
@@ -42,7 +49,7 @@ class IdeaVersionResponse(BaseModel):
 
 class IdeaResponse(BaseModel):
     id: str
-    author_id: str
+    author: AuthorShort
     visibility: VisibilityEnum
     stage: StageEnum
     tags: Optional[List[str]]

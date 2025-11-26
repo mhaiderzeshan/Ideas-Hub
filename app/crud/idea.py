@@ -1,4 +1,3 @@
-import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List, Tuple
 from app.db.models.idea import Idea, IdeaVersion
@@ -19,7 +18,8 @@ async def get_idea_by_id(
         select(Idea)
         .where(Idea.id == idea_id)
         .where(Idea.is_deleted.is_(False))
-        .options(selectinload(Idea.current_version))
+        .options(selectinload(Idea.current_version),
+                 selectinload(Idea.author))
     )
 
     result = await db.execute(query)
@@ -53,7 +53,10 @@ async def get_multi_ideas(
 
     Returns a tuple of (list_of_ideas, total_item_count).
     """
-    query = select(Idea).options(selectinload(Idea.current_version))
+    query = select(Idea).options(
+        selectinload(Idea.current_version),
+        selectinload(Idea.author)
+    )
 
     query = query.where(Idea.is_deleted.is_(False))
 
@@ -106,7 +109,6 @@ async def create_new_idea_version(
 
     # Create new version
     new_version = IdeaVersion(
-        id=str(uuid.uuid4()),
         idea_id=idea_to_update.id,
         title=version_data.title,
         short_summary=version_data.short_summary,
@@ -127,11 +129,19 @@ async def create_new_idea_version(
     # Commit transaction
     await db.commit()
 
-    # Refresh idea to load the new relationship
-    await db.refresh(new_version)
-    await db.refresh(idea_to_update)
+    query = (
+        select(Idea)
+        .where(Idea.id == idea_to_update.id)
+        .options(
+            selectinload(Idea.current_version),
+            selectinload(Idea.author)
+        )
+    )
 
-    return idea_to_update
+    result = await db.execute(query)
+    refreshed_idea = result.scalar_one()
+
+    return refreshed_idea
 
 
 async def soft_delete_idea(db: AsyncSession, *, idea_to_delete: Idea) -> None:

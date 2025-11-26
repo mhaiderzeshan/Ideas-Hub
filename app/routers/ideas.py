@@ -8,7 +8,6 @@ from typing import Optional, List
 from app.core.dependencies import get_current_user, get_verified_user
 from app.db.models.idea import Idea, IdeaVersion
 from app.db.models.user import User
-import uuid
 from app.crud.idea import get_idea_by_id, get_multi_ideas, create_new_idea_version, soft_delete_idea
 from app.db.models.enum_json import StageEnum
 from app.core.dependencies import get_idea_for_update
@@ -23,42 +22,54 @@ async def create_idea(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_verified_user)
 ):
+    """
+    Create a new idea along with its initial version."""
 
-    new_idea = Idea(
-        id=str(uuid.uuid4()),
-        author_id=current_user.id,
-        tags=idea_data.tags or [],
-        visibility=idea_data.visibility,
-        stage=idea_data.stage,
-    )
-    db.add(new_idea)
-    await db.flush()  # ensures new_idea.id is available
+    try:
+        # Create the new idea and its initial version
+        new_idea = Idea(
+            author_id=current_user.id,
+            tags=idea_data.tags or [],
+            visibility=idea_data.visibility,
+            stage=idea_data.stage,
+        )
+        db.add(new_idea)
+        await db.flush()  # ensures new_idea.id is available
 
-    new_idea_version = IdeaVersion(
-        id=str(uuid.uuid4()),
-        idea_id=new_idea.id,
-        title=idea_data.title,
-        short_summary=idea_data.short_summary,
-        body_md=idea_data.body_md,
-        attachments=idea_data.attachments or [],
-        version_number=1,
-    )
-    db.add(new_idea_version)
-    await db.flush()  # ensures new_idea_version.id is available
+        new_idea_version = IdeaVersion(
+            idea_id=new_idea.id,
+            title=idea_data.title,
+            short_summary=idea_data.short_summary,
+            body_md=idea_data.body_md,
+            attachments=idea_data.attachments or [],
+            version_number=1,
+        )
+        db.add(new_idea_version)
+        await db.flush()  # ensures new_idea_version.id is available
 
-    new_idea.current_version_id = new_idea_version.id
+        new_idea.current_version_id = new_idea_version.id
 
-    await db.commit()
+        await db.commit()
 
-    query = (
-        select(Idea)
-        .where(Idea.id == new_idea.id)
-        .options(selectinload(Idea.current_version))
-    )
-    result = await db.execute(query)
-    created_idea_with_version = result.scalar_one()
+        query = (
+            select(Idea)
+            .where(Idea.id == new_idea.id)
+            .options(
+                selectinload(Idea.current_version),
+                selectinload(Idea.author)
+            )
+        )
 
-    return created_idea_with_version
+        result = await db.execute(query)
+        final_idea = result.scalar_one()
+
+        return final_idea
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create idea"
+        ) from e
 
 
 @router.get("/{id}", response_model=IdeaResponse)

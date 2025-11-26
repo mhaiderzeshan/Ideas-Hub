@@ -1,4 +1,3 @@
-from fastapi import Request, HTTPException, status
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
@@ -7,10 +6,12 @@ from sqlalchemy import select, update
 
 import secrets
 import uuid
+import logging
 
 from app.core.util import hash_token
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
 
 SECRET_KEY = settings.SECRET_KEY.get_secret_value()
 ALGORITHM = settings.ALGORITHM
@@ -57,17 +58,17 @@ async def verify_refresh_token(refresh_token: str, db: AsyncSession, credentials
 
     # Reuse Detection
     if db_refresh_token.revoked:
+        # Log the security event
+        logger.warning(
+            f"SECURITY ALERT: Revoked token detected for user {db_refresh_token.user_id}")
 
-        stmt = update(RefreshToken).where(
-            RefreshToken.user_id == db_refresh_token.user_id
-        ).values(revoked=True)
+        # Nuke all sessions for this user
+        await revoke_all_user_tokens(db, int(db_refresh_token.user_id))
 
-        await db.execute(stmt)
-        await db.commit()
-
+        # Deny access
         raise credentials_exception
 
-    # 4. Check Expiration
+    # Check Expiration
     if datetime.now(timezone.utc) > db_refresh_token.expires_at:
         await db.delete(db_refresh_token)
         await db.commit()
@@ -109,3 +110,15 @@ async def revoke_refresh_token(db: AsyncSession, refresh_token_id: int):
     if token and not token.revoked:
         setattr(token, "revoked", True)
         await db.commit()
+
+
+async def revoke_all_user_tokens(db: AsyncSession, user_id: int):
+    from app.db.models.token import RefreshToken
+
+    stmt = (
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id)
+        .values(revoked=True)
+    )
+    await db.execute(stmt)
+    await db.commit()
