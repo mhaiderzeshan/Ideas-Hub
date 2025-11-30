@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.user import UserCreate
 from app.services.email_verification import EmailVerificationService
-from app.services.email_service import EmailService
+from app.core.email import get_email_service, EmailService
 from app.core.util import hashed_password, verify_hashed_password
 from app.core.rate_limiter import rate_limit
 from app.crud.auth import auth_service
@@ -32,7 +32,12 @@ router = APIRouter(tags=["Local Authentication"])
     "/signup",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(rate_limit)])
-async def create_user(user: UserCreate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+async def create_user(
+    user: UserCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    email_service: EmailService = Depends(get_email_service)
+):
     # Check if user already exists
     query = select(User).where(User.email == user.email)
     result = await db.execute(query)
@@ -60,7 +65,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks, db: A
     # Send verification email in background
     verification_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
     background_tasks.add_task(
-        EmailService.send_verification_email,
+        email_service.send_verification_email,
         new_user.email,
         new_user.name,
         verification_url

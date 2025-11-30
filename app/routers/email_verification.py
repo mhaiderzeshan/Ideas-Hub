@@ -5,14 +5,14 @@ from datetime import datetime
 from fastapi.responses import Response
 
 from app.schemas.email_verify import (
-    EmailVerificationRequest,
+    TokenVerificationRequest,
     ResendVerificationRequest,
     MessageResponse
 )
 from app.db.database import get_db
 from app.db.models.user import User
 from app.services.email_verification import EmailVerificationService
-from app.services.email_service import EmailService
+from app.core.email import get_email_service, EmailService
 from app.core.dependencies import get_current_user
 from app.core.config import settings
 
@@ -21,40 +21,18 @@ router = APIRouter(tags=["Email Verification"])
 
 @router.post("/verify-email", response_model=MessageResponse)
 async def verify_email(
-    request: EmailVerificationRequest,
+    request: TokenVerificationRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Verify user's email with token"""
     try:
-        # Get user by email
-        result = await db.execute(
-            select(User).where(User.email == request.email)
-        )
-        user = result.scalar_one_or_none()
+        success = await EmailVerificationService.verify_email(db, request.token)
 
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-
-        # Verify the token
-        if (not user.email_verification_token or
-            user.email_verification_token != request.token or
-            user.email_verification_token_expiry is None or
-                user.email_verification_token_expiry < datetime.utcnow()):
+        if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired verification token"
             )
-
-        # Update user
-        user.is_email_verified = True
-        user.email_verified_at = datetime.utcnow()
-        user.email_verification_token = None
-        user.email_verification_token_expiry = None
-
-        await db.commit()
 
         return {"message": "Email verified successfully"}
 
@@ -167,7 +145,8 @@ async def verify_email_get(
 async def resend_verification_email(
     request: ResendVerificationRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    email_service: EmailService = Depends(get_email_service)
 ):
     """Resend verification email"""
     result = await db.execute(
@@ -191,7 +170,7 @@ async def resend_verification_email(
     # Send verification email in background
     verification_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
     background_tasks.add_task(
-        EmailService.send_verification_email,
+        email_service.send_verification_email,
         user.email,
         user.name,
         verification_url
