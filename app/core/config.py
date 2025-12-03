@@ -30,5 +30,10 @@ class Settings(BaseSettings):
     EMAIL_TIMEOUT: int = 30
     MAX_RETRIES: int = 3
 
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: SecretStr
+    CLOUDINARY_FOLDER: str
+
 
 settings = Settings()  # type: ignore
