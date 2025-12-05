@@ -54,6 +54,9 @@ class Idea(UUIDMixin, Base):
                          uselist=False, cascade="all, delete")
     author = relationship("User", back_populates="ideas")
 
+    likes = relationship("PostLike", back_populates="post",
+                         cascade="all, delete")
+
 
 class IdeaVersion(UUIDMixin, Base):
     __tablename__ = "idea_versions"

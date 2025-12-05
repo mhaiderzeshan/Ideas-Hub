@@ -11,6 +11,7 @@ from app.routers.auth_google import router as oauth_router
 from app.routers.users import router as user_router
 from app.routers.ideas import router as idea_router
 from app.routers.upload import router as upload_router
+from app.routers.likes import router as likes_router
 from app.routers.auth import router as auth_router
 from app.routers.email_verification import router as email_verification_router
 
@@ -66,6 +67,7 @@ app.include_router(oauth_router)
 app.include_router(user_router)
 app.include_router(idea_router)
 app.include_router(upload_router)
+app.include_router(likes_router)
 
 
 @app.get("/")

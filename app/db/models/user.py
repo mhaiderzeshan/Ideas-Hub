@@ -57,3 +57,4 @@ class User(UUIDMixin, Base):
     refresh_tokens = relationship("RefreshToken", back_populates="user")
     ideas = relationship("Idea", back_populates="author",
                          cascade="all, delete-orphan")
+    likes = relationship("PostLike", back_populates="user")
