@@ -61,6 +61,9 @@ class IdeaResponse(BaseModel):
     # Embedded current version info
     current_version: Optional[IdeaVersionResponse]
 
+    can_edit: bool = False
+    can_delete: bool = False
+
     class Config:
         from_attributes = True
 

@@ -5,6 +5,7 @@ from app.db.database import get_db
 from app.schemas.idea_schemas import IdeaCreate, IdeaResponse, IdeaUpdate, PaginatedIdeasResponse
 from sqlalchemy import select
 from typing import Optional, List
+from app.core.permissions import get_idea_permissions
 from app.core.dependencies import get_current_user, get_verified_user
 from app.db.models.idea import Idea, IdeaVersion
 from app.db.models.user import User
@@ -94,7 +95,14 @@ async def get_idea(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Idea not found")
 
-    return idea
+    permissions = get_idea_permissions(idea, current_user)
+
+    response = IdeaResponse.model_validate(idea)
+
+    response.can_edit = permissions["can_edit"]
+    response.can_delete = permissions["can_delete"]
+
+    return response
 
 
 @router.get("/", response_model=PaginatedIdeasResponse[IdeaResponse])
@@ -121,11 +129,25 @@ async def list_ideas(
         author_id=author_id
     )
 
+    processed_items = []
+    for idea in ideas_list:
+        # Calculate permissions for this specific idea
+        permissions = get_idea_permissions(idea, current_user)
+
+        # Convert to Pydantic model
+        idea_response = IdeaResponse.model_validate(idea)
+
+        # Inject flags
+        idea_response.can_edit = permissions["can_edit"]
+        idea_response.can_delete = permissions["can_delete"]
+
+        processed_items.append(idea_response)
+
     return PaginatedIdeasResponse(
         total_count=total_count,
         page=page,
         size=size,
-        items=ideas_list,
+        items=processed_items,
     )
 
 
