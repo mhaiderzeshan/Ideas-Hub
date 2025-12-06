@@ -163,6 +163,7 @@ async def update_idea_content(
     version_data: IdeaUpdate,
     db: AsyncSession = Depends(get_db),
     idea_to_update: Idea = Depends(get_idea_for_update),
+    current_user: User = Depends(get_verified_user)
 ):
     """
     Create a new version for an existing idea.
@@ -173,7 +174,15 @@ async def update_idea_content(
     updated_idea = await create_new_idea_version(
         db=db, idea_to_update=idea_to_update, version_data=version_data
     )
-    return updated_idea
+
+    permissions = get_idea_permissions(updated_idea, current_user)
+
+    response = IdeaResponse.model_validate(updated_idea)
+
+    response.can_edit = permissions["can_edit"]
+    response.can_delete = permissions["can_delete"]
+
+    return response
 
 
 @router.delete(
