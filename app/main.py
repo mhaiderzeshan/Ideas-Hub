@@ -1,4 +1,3 @@
-# app/main.py
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,6 +68,11 @@ app.include_router(user_router)
 app.include_router(idea_router)
 app.include_router(upload_router)
 app.include_router(likes_router)
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "message": "Server is running"}
 
 
 @app.get("/")
