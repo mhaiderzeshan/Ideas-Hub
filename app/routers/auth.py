@@ -16,7 +16,7 @@ from app.db.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["Forgot-password Authentication"])
 
-# Constants (no change)
+
 RESET_TOKEN_EXPIRY_HOURS = 1
 MIN_REQUEST_INTERVAL_MINUTES = 5
 

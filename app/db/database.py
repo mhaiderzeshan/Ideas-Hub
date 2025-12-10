@@ -1,3 +1,4 @@
+import ssl
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.core.config import settings
@@ -15,6 +16,12 @@ SQLALCHEMY_DATABASE_URL = DATABASE_URL
 if not SQLALCHEMY_DATABASE_URL:
     raise ValueError("Database URL not found in environment variables.")
 
+
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_pre_ping=True,     # Check if connections are alive
@@ -23,9 +30,10 @@ engine = create_async_engine(
     max_overflow=10,        # Extra connections when needed
     pool_timeout=30,        # Wait time for connection
     pool_recycle=3600,      # Recycle connections after 1 hour
+    connect_args={"ssl": ssl_context}
 )
 
-# Use async_sessionmaker for SQLAlchemy 2.0 async sessions
+
 AsyncSessionLocal = async_sessionmaker(
     engine,
     expire_on_commit=False,
