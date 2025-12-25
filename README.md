@@ -1,158 +1,182 @@
-# Ideas Hub
+# Ideas Hub – Backend API
 
-Ideas Hub is a FastAPI-based backend application for a platform where users can share and manage their ideas. It includes features like user authentication (local and Google OAuth), idea management, image uploads, and more.
+Ideas Hub is a **FastAPI-based backend** built to explore how a real-world content platform could be designed, secured, and scaled at a foundational level.
 
-## Features
+This project focuses on **authentication, authorization, data modeling, and API design**, rather than just exposing CRUD endpoints. It demonstrates production-aware backend patterns while remaining intentionally scoped for learning and clarity.
 
-- **User Authentication:** Secure user registration and login with JWT (JSON Web Tokens).
-- **Google OAuth 2.0:** Users can sign up and log in using their Google accounts.
-- **Email Verification:** New users receive a verification email to activate their accounts.
-- **Idea Management:** CRUD (Create, Read, Update, Delete) operations for ideas.
-- **Likes:** Users can like and unlike ideas.
-- **Image Uploads:** Supports image uploads to Cloudinary.
-- **Role-Based Access Control:** Differentiated access levels for users.
-- **Rate Limiting:** Protects the API from brute-force attacks.
-- **CORS Support:** Allows access from a frontend application.
-- **Dockerized:** Ready for containerization and deployment.
+---
 
-## Technologies Used
+## Problem This Backend Solves
 
-- **Backend:** Python, FastAPI
-- **Database:** MySQL (with SQLAlchemy ORM and asyncmy driver)
-- **Authentication:** Passlib for password hashing, python-jose for JWT
-- **Image Storage:** Cloudinary
-- **Email Service:** Brevo
-- **Caching:** Redis
-- **Containerization:** Docker
-- **Environment Management:** pydantic-settings
+The backend supports a realistic but intentionally simple use case:
+
+> Users can create, manage, and engage with ideas while the system enforces authentication, permissions, and basic abuse protection.
+
+The primary goal is not the domain itself, but practicing:
+
+- Secure authentication flows
+- Clean separation of concerns
+- Scalable API structure
+- Third-party service integration
+
+---
+
+## Core Features
+
+### Authentication & Security
+
+- JWT-based authentication (access & refresh tokens)
+- Google OAuth 2.0 login
+- Email verification and password reset
+- Role-based access control (RBAC)
+- Rate limiting on sensitive endpoints
+
+### Idea & Engagement System
+
+- Create, read, update, and delete ideas
+- Soft deletion for data integrity
+- Like / unlike functionality with duplicate protection
+- Paginated idea listing
+
+### Infrastructure & Integrations
+
+- Async SQLAlchemy with MySQL
+- Redis for rate limiting and future caching
+- Cloudinary for image uploads
+- Brevo for transactional emails
+- Dockerized setup for environment consistency
+
+---
+
+## Technology Stack & Rationale
+
+| Component        | Technology         | Reason                                        |
+| ---------------- | ------------------ | --------------------------------------------- |
+| API Framework    | FastAPI            | Async support, strong typing, OpenAPI docs    |
+| Database         | MySQL              | Relational structure, predictable performance |
+| ORM              | SQLAlchemy (async) | Explicit query control                        |
+| Authentication   | JWT (python-jose)  | Stateless API authentication                  |
+| Caching          | Redis              | Rate limiting and caching support             |
+| Image Storage    | Cloudinary         | Offloaded media handling                      |
+| Email Service    | Brevo              | Transactional email delivery                  |
+| Containerization | Docker             | Consistent environments                       |
+
+---
 
 ## Project Structure
 
-```
-├── app/
-│   ├── core/         # Core application logic (config, security, etc.)
-│   ├── crud/         # CRUD operations for database models
-│   ├── db/           # Database setup and models
-│   ├── routers/      # API endpoint definitions
-│   ├── schemas/      # Pydantic schemas for data validation
-│   └── services/     # Business logic services
-├── .env.example      # Example environment variables
-├── Dockerfile        # Docker configuration
-├── requirements.txt  # Python dependencies
-└── README.md         # This file
-```
+app/
+├── core/ # Configuration, security, shared utilities
+├── db/ # Database session and models
+├── schemas/ # Pydantic models (validation & serialization)
+├── crud/ # Database access layer
+├── services/ # Business logic and workflows
+├── routers/ # API endpoints (thin controllers)
 
-## Setup and Installation
+Design principle:  
+Routers remain thin, business rules live in services, and database access is isolated to avoid tight coupling.
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/ideas-hub.git
+---
+
+## API Documentation
+
+Interactive API documentation is available via Swagger UI:
+
+GET /docs
+
+### Authentication (/auth)
+
+- Signup, login, logout
+- Token refresh
+- Google OAuth login
+- Password reset flow
+
+### Users (/users)
+
+- Get authenticated user profile
+- Role-protected routes (admin example)
+
+### Ideas (/ideas)
+
+- Create, read, update, delete ideas
+- Paginated listing
+- Soft deletion
+
+### Likes (/posts)
+
+- Like / unlike ideas
+- Retrieve like counts
+
+### Uploads (/upload)
+
+- Upload up to 5 images per request
+
+---
+
+## Environment Configuration
+
+Configuration is managed entirely via environment variables.
+
+Categories include:
+
+- Database: MySQL credentials
+- Security: JWT secrets and expiration
+- OAuth: Google client credentials
+- Caching: Redis connection
+- Email: Brevo API credentials
+- App Config: Environment, CORS, frontend URL
+
+A complete reference is available in `.env.example`.
+
+---
+
+## Running the Project
+
+### Clone the repository:
+
+    git clone https://github.com/mhaiderzeshan/ideas-hub.git
     cd ideas-hub
-    ```
 
-2.  **Create a virtual environment and install dependencies:**
-    ```bash
+### Local Setup (Without Docker)
+
     python -m venv env
     source env/bin/activate  # On Windows: env\Scripts\activate
     pip install -r requirements.txt
-    ```
+    uvicorn app.main:app --reload
 
-3.  **Set up environment variables:**
-    Create a `.env` file by copying `.env.example` and fill in the required values.
-    ```bash
-    cp .env.example .env
-    ```
+### Docker Setup
 
-## Running the Application
-
-### Without Docker
-
-To run the application locally, use `uvicorn`:
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### With Docker
-
-1.  **Build the Docker image:**
-    ```bash
     docker build -t ideas-hub .
-    ```
-
-2.  **Run the Docker container:**
-    ```bash
     docker run -p 8000:8000 --env-file .env ideas-hub
-    ```
-The application will be available at `http://localhost:8000`.
 
-## API Endpoints
+---
 
-Below is a detailed list of the available API endpoints. For interactive documentation, run the application and visit `http://localhost:8000/docs`.
+## Limitations & Planned Improvements
 
-### Authentication (`/auth`)
+This project is intentionally **not production-complete**.
 
--   `POST /signup`: Register a new user.
--   `POST /login`: Log in a user with email and password.
--   `POST /logout`: Log out the current user and invalidate tokens.
--   `POST /refresh`: Refresh the access token using a refresh token.
--   `GET /google/login`: Initiate the Google OAuth 2.0 login flow.
--   `GET /auth/callback`: Callback URL for Google OAuth 2.0.
--   `POST /forgot-password`: Request a password reset email.
--   `POST /resend-reset-email`: Resend the password reset email.
--   `POST /verify-reset-token`: Verify the password reset token.
--   `POST /reset-password`: Reset the user's password using a valid token.
+Planned improvements include:
 
-### Email Verification
+- Database migrations (Alembic)
+- Background tasks for email delivery
+- Centralized logging and monitoring
+- API versioning
+- Improved permission modeling
+- CI/CD pipeline integration
 
--   `POST /verify-email`: Verify a user's email address with a token.
--   `GET /verify-email`: Verify email from a URL link.
--   `POST /resend-verification`: Resend the email verification link.
--   `GET /verification-status`: Check the email verification status of the current user.
+---
 
-### Users (`/users`)
+## Purpose of This Project
 
--   `GET /me`: Get the profile of the currently authenticated user.
--   `GET /admin`: (Admin only) Example protected route for admin users.
+This repository demonstrates:
 
-### Ideas (`/ideas`)
+- Backend fundamentals beyond basic CRUD
+- Secure API authentication patterns
+- Clean backend architecture
+- Awareness of real-world trade-offs and limitations
 
--   `POST /`: Create a new idea.
--   `GET /`: Get a paginated list of ideas.
--   `GET /{id}`: Get a single idea by its ID.
--   `PUT /{idea_id}`: Update an existing idea.
--   `DELETE /{idea_id}`: Soft-delete an idea.
+---
 
-### Likes (`/posts`)
+## Final Note
 
--   `POST /{post_id}/like`: Toggle like/unlike on a post.
--   `GET /{post_id}/likes`: Get the total number of likes for a post.
-
-### Image Upload (`/upload`)
-
--   `POST /images`: Upload up to 5 images.
-
-## Environment Variables
-
-The following environment variables are required:
-
-- `DB_USER`: Database username
-- `DB_PASSWORD`: Database password
-- `DB_HOST`: Database host
-- `DB_PORT`: Database port
-- `DB_NAME`: Database name
-- `ENVIRONMENT`: Application environment (e.g., `development`, `production`)
-- `SECRET_KEY`: Secret key for JWT
-- `ALGORITHM`: JWT algorithm (e.g., `HS256`)
-- `ACCESS_TOKEN_EXPIRE_MINUTES`: Access token expiration time in minutes
-- `REFRESH_TOKEN_EXPIRE_DAYS`: Refresh token expiration time in days
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-- `GOOGLE_REDIRECT_URI`: Google OAuth redirect URI
-- `CORS_ORIGINS`: Comma-separated list of allowed CORS origins
-- `REDIS_URL`: Redis connection URL
-- `BREVO_API_KEY`: Brevo API key
-- `EMAIL_FROM`: Sender email address
-- `EMAIL_FROM_NAME`: Sender name
-- `FRONTEND_URL`: Frontend application URL (for email links)
-- `EMAIL_TIMEOUT`: Timeout for sending emails
-- `MAX_RETRIES`: Maximum retries for sending emails
+This is a **learning-focused backend project built with production awareness**, not a finished SaaS product.
