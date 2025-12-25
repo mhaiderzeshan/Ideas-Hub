@@ -70,7 +70,7 @@ app.include_router(upload_router)
 app.include_router(likes_router)
 
 
-@app.get("/health")
+@app.head("/health")
 async def health_check():
     return {"status": "ok", "message": "Server is running"}
 
